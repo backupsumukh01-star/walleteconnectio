@@ -158,6 +158,22 @@ Vite bakes `VITE_*` values in at **build** time. Set the env var on Render befor
 
 6. In [Reown Dashboard](https://dashboard.reown.com/) open the project and add that exact origin (domain + `https`) to allowed domains / Verify. WalletConnect metadata uses `window.location.origin`, so it will match the Render URL automatically.
 
+### If the site shows "Not Found"
+
+That means Render is not serving Vite's `dist/index.html`.
+
+1. The service type must be **Static Site**, not Web Service.
+2. In Render → Settings:
+
+| Field | Must be |
+| --- | --- |
+| Build command | `npm install && npm run build` |
+| Publish directory | `dist` |
+
+3. Do **not** use `public`, `build`, or `.` as the publish directory.
+4. Environment → `VITE_PROJECT_ID` must exist, then **Manual Deploy → Clear build cache & deploy**.
+5. Open Logs and confirm the build ends with Vite output written to `dist`.
+
 `render.yaml` is included if you prefer Blueprint deploys. `VITE_PROJECT_ID` is marked `sync: false` so you paste it in the Render dashboard, not in git.
 
 ## Official docs
