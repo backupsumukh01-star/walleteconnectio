@@ -23,11 +23,18 @@ export class SessionService {
     const namespaces = this.mapApprovedNamespaces(session.namespaces);
     const namespaceAccounts = this.collectAccounts(namespaces);
     const extraAccounts = [...(source.accounts ?? [])];
+    const eip155Accounts = namespaceAccounts.filter((account) =>
+      account.startsWith("eip155:"),
+    );
+    const primaryCaipAccount = eip155Accounts[0] ?? namespaceAccounts[0];
+    const primaryParsed = primaryCaipAccount
+      ? parseCaipAccount(primaryCaipAccount)
+      : null;
     const connectedAccounts = uniqueStrings([
       ...chainService.extractAddresses(namespaceAccounts),
       ...extraAccounts,
     ]);
-    const walletAddress = connectedAccounts[0];
+    const walletAddress = primaryParsed?.address ?? connectedAccounts[0];
 
     if (!walletAddress || !session.topic) {
       return null;
@@ -38,7 +45,7 @@ export class SessionService {
       ...chainService.extractApprovedChainsFromAccounts(namespaceAccounts),
     ]);
 
-    const chainId = this.resolveChainId(source, namespaces, namespaceAccounts);
+    const chainId = this.resolveChainId(primaryParsed, source, namespaces);
     const tokenStandards = chainService.detectTokenStandards({
       namespaces,
       chainId,
@@ -59,6 +66,7 @@ export class SessionService {
       chainId,
       tokenStandards,
       connectedAccounts,
+      caipAccounts: namespaceAccounts,
       namespaces,
       approvedChains,
       approvedMethods,
@@ -134,11 +142,18 @@ export class SessionService {
   }
 
   private resolveChainId(
+    primary: { namespace: string; chainReference: string } | null,
     source: SessionSource,
     namespaces: ApprovedNamespaces,
-    namespaceAccounts: readonly string[],
   ): number {
-    if (namespaces.tron) {
+    if (primary?.namespace === "eip155") {
+      const chainId = Number(primary.chainReference);
+      if (Number.isInteger(chainId) && chainId > 0) {
+        return chainId;
+      }
+    }
+
+    if (primary?.namespace === "tron") {
       return TRON_MAINNET.chainId;
     }
 
@@ -149,15 +164,12 @@ export class SessionService {
       }
     }
 
-    const parsed = namespaceAccounts
-      .map((account) => parseCaipAccount(account))
-      .find((item) => item?.namespace === "eip155");
+    if (namespaces.eip155) {
+      return 1;
+    }
 
-    if (parsed) {
-      const chainId = Number(parsed.chainReference);
-      if (Number.isInteger(chainId)) {
-        return chainId;
-      }
+    if (namespaces.tron) {
+      return TRON_MAINNET.chainId;
     }
 
     return 1;

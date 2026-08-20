@@ -38,6 +38,7 @@ export interface SessionSnapshot {
   readonly chainId: number;
   readonly tokenStandards: readonly TokenStandard[];
   readonly connectedAccounts: readonly string[];
+  readonly caipAccounts: readonly string[];
   readonly namespaces: ApprovedNamespaces;
   readonly approvedChains: readonly string[];
   readonly approvedMethods: readonly string[];

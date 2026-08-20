@@ -65,6 +65,7 @@ function isSessionSnapshot(value: unknown): value is SessionSnapshot {
     typeof record.chainId === "number" &&
     Array.isArray(record.tokenStandards) &&
     Array.isArray(record.connectedAccounts) &&
+    Array.isArray(record.caipAccounts) &&
     typeof record.namespaces === "object" &&
     record.namespaces !== null &&
     Array.isArray(record.approvedChains) &&

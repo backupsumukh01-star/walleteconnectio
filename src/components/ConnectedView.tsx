@@ -39,6 +39,14 @@ export function ConnectedView({ session, onDisconnect }: ConnectedViewProps) {
           value={`${session.walletAddress} (${shortenAddress(session.walletAddress)})`}
         />
         <Row
+          label="All Connected Accounts"
+          value={
+            session.caipAccounts.length > 0
+              ? session.caipAccounts.join(", ")
+              : session.connectedAccounts.join(", ")
+          }
+        />
+        <Row
           label="Current Chain"
           value={chainService.formatChainLabel(
             chainService.toCaip2(session.chainId),
