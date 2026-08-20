@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: walletconnect-phase1
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_PROJECT_ID
+        sync: false
