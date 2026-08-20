@@ -1,16 +1,9 @@
 import { createAppKit } from "@reown/appkit";
-import { mainnet } from "@reown/appkit/networks";
-import { EthereumProvider } from "@walletconnect/ethereum-provider";
+import { bsc, mainnet } from "@reown/appkit/networks";
 import UniversalProvider from "@walletconnect/universal-provider";
-import { OPTIONAL_EVM_CHAIN_IDS } from "../config/chains";
 import { getWalletConnectProjectId } from "../config/env";
-import {
-  evmChainIdForStandard,
-  getAppMetadata,
-  getEthereumProviderInitConfig,
-  getTronOptionalNamespaces,
-} from "../config/walletConnect";
-import type { SessionSnapshot, TokenStandard, WalletConnectProvider } from "../types/wallet";
+import { getAppMetadata, getMultiNetworkNamespaces } from "../config/walletConnect";
+import type { SessionSnapshot } from "../types/wallet";
 import { mapWalletError, missingProjectIdError } from "../utils/errors";
 import { providerService } from "./ProviderService";
 import { sessionService } from "./SessionService";
@@ -19,12 +12,13 @@ type SessionListener = (snapshot: SessionSnapshot | null) => void;
 type ErrorListener = (message: string | null) => void;
 type AppKitModal = ReturnType<typeof createAppKit>;
 
+/**
+ * One WalletConnect session for ERC20 (Ethereum), BEP20 (BSC), and TRC20 (Tron).
+ */
 export class WalletConnectService {
-  private evmInitPromise: Promise<WalletConnectProvider> | null = null;
-  private universalInitPromise: Promise<UniversalProvider> | null = null;
+  private initPromise: Promise<UniversalProvider> | null = null;
   private modal: AppKitModal | null = null;
-  private evmListenersAttached = false;
-  private universalListenersAttached = false;
+  private listenersAttached = false;
   private readonly sessionListeners = new Set<SessionListener>();
   private readonly errorListeners = new Set<ErrorListener>();
 
@@ -42,27 +36,49 @@ export class WalletConnectService {
     };
   }
 
-  async connect(standard: TokenStandard): Promise<SessionSnapshot> {
+  async connect(): Promise<SessionSnapshot> {
     if (!getWalletConnectProjectId()) {
       throw missingProjectIdError();
     }
 
-    try {
-      const snapshot =
-        standard === "TRC20" ? await this.connectTron() : await this.connectEvm(standard);
+    const provider = await this.getProvider();
+    const modal = this.getOrCreateModal(provider);
 
-      this.emitError(null);
-      this.emitSession(snapshot);
-      return snapshot;
+    try {
+      await modal.open();
+      await provider.connect({
+        optionalNamespaces: getMultiNetworkNamespaces(),
+      });
     } catch (error) {
       const mapped = mapWalletError(error);
       this.emitError(mapped.message);
       throw mapped;
+    } finally {
+      await modal.close();
     }
+
+    const snapshot = this.capture(provider);
+    if (!snapshot) {
+      const invalid = mapWalletError(new Error("Invalid session after connect."));
+      this.emitError(invalid.message);
+      throw invalid;
+    }
+
+    this.emitError(null);
+    return snapshot;
   }
 
   async disconnect(): Promise<void> {
-    await this.disconnectProviders();
+    const provider = providerService.getUniversalProvider();
+
+    try {
+      if (provider?.session) {
+        await provider.disconnect();
+      }
+    } catch {
+      // Already disconnected.
+    }
+
     sessionService.clear();
     this.emitSession(null);
   }
@@ -72,92 +88,33 @@ export class WalletConnectService {
       throw missingProjectIdError();
     }
 
-    const evm = await this.getEvmProvider(OPTIONAL_EVM_CHAIN_IDS);
-    if (evm.session) {
-      return this.captureEvm(evm);
+    const provider = await this.getProvider();
+    if (!provider.session) {
+      sessionService.clear();
+      this.emitSession(null);
+      return null;
     }
 
-    const universal = await this.getUniversalProvider();
-    if (universal.session?.namespaces.tron) {
-      return this.captureUniversal(universal);
-    }
-
-    sessionService.clear();
-    this.emitSession(null);
-    return null;
+    return this.capture(provider);
   }
 
-  private async connectEvm(standard: Exclude<TokenStandard, "TRC20">): Promise<SessionSnapshot> {
-    await this.disconnectProviders();
-    const chainId = evmChainIdForStandard(standard);
-    this.evmInitPromise = null;
-    providerService.setEvmProvider(null);
-    this.evmListenersAttached = false;
-
-    const provider = await this.getEvmProvider([chainId] as [number, ...number[]]);
-    await provider.connect();
-
-    const snapshot = this.captureEvm(provider);
-    if (!snapshot) {
-      throw new Error("Invalid session after connect.");
-    }
-
-    return snapshot;
-  }
-
-  private async connectTron(): Promise<SessionSnapshot> {
-    await this.disconnectProviders();
-    const provider = await this.getUniversalProvider();
-    const modal = this.getOrCreateModal(provider);
-
-    await modal.open();
-    try {
-      await provider.connect({
-        optionalNamespaces: getTronOptionalNamespaces(),
-      });
-    } finally {
-      await modal.close();
-    }
-
-    const snapshot = this.captureUniversal(provider);
-    if (!snapshot) {
-      throw new Error("Invalid session after connect.");
-    }
-
-    return snapshot;
-  }
-
-  private async getEvmProvider(chainIds: [number, ...number[]]): Promise<WalletConnectProvider> {
-    const existing = providerService.getEvmProvider();
-    if (existing && this.evmInitPromise) {
-      this.attachEvmListeners(existing);
-      return existing;
-    }
-
-    this.evmInitPromise = EthereumProvider.init(getEthereumProviderInitConfig(chainIds));
-    const provider = await this.evmInitPromise;
-    providerService.setEvmProvider(provider);
-    this.attachEvmListeners(provider);
-    return provider;
-  }
-
-  private async getUniversalProvider(): Promise<UniversalProvider> {
+  private async getProvider(): Promise<UniversalProvider> {
     const existing = providerService.getUniversalProvider();
     if (existing) {
-      this.attachUniversalListeners(existing);
+      this.attachListeners(existing);
       return existing;
     }
 
-    if (!this.universalInitPromise) {
-      this.universalInitPromise = UniversalProvider.init({
+    if (!this.initPromise) {
+      this.initPromise = UniversalProvider.init({
         projectId: getWalletConnectProjectId(),
         metadata: getAppMetadata(),
       });
     }
 
-    const provider = await this.universalInitPromise;
+    const provider = await this.initPromise;
     providerService.setUniversalProvider(provider);
-    this.attachUniversalListeners(provider);
+    this.attachListeners(provider);
     return provider;
   }
 
@@ -169,7 +126,7 @@ export class WalletConnectService {
     this.modal = createAppKit({
       projectId: getWalletConnectProjectId(),
       metadata: getAppMetadata(),
-      networks: [mainnet],
+      networks: [mainnet, bsc],
       universalProvider: provider,
       manualWCControl: true,
       themeMode: "dark",
@@ -183,35 +140,8 @@ export class WalletConnectService {
     return this.modal;
   }
 
-  private attachEvmListeners(provider: WalletConnectProvider): void {
-    if (this.evmListenersAttached) {
-      return;
-    }
-
-    provider.on("accountsChanged", () => {
-      if (!provider.session) {
-        sessionService.clear();
-        this.emitSession(null);
-        return;
-      }
-
-      this.captureEvm(provider);
-    });
-
-    provider.on("chainChanged", () => {
-      this.captureEvm(provider);
-    });
-
-    provider.on("disconnect", () => {
-      sessionService.clear();
-      this.emitSession(null);
-    });
-
-    this.evmListenersAttached = true;
-  }
-
-  private attachUniversalListeners(provider: UniversalProvider): void {
-    if (this.universalListenersAttached) {
+  private attachListeners(provider: UniversalProvider): void {
+    if (this.listenersAttached) {
       return;
     }
 
@@ -220,26 +150,14 @@ export class WalletConnectService {
       this.emitSession(null);
     });
 
-    this.universalListenersAttached = true;
-  }
-
-  private captureEvm(provider: WalletConnectProvider): SessionSnapshot | null {
-    if (!provider.session) {
-      sessionService.clear();
-      return null;
-    }
-
-    const snapshot = sessionService.buildSnapshot({
-      session: provider.session,
-      accounts: provider.accounts,
-      chainId: provider.chainId,
-      providerType: "walletconnect-ethereum",
+    provider.on("session_update", () => {
+      this.capture(provider);
     });
 
-    return this.persistIfValid(snapshot, provider.session);
+    this.listenersAttached = true;
   }
 
-  private captureUniversal(provider: UniversalProvider): SessionSnapshot | null {
+  private capture(provider: UniversalProvider): SessionSnapshot | null {
     if (!provider.session) {
       sessionService.clear();
       return null;
@@ -250,14 +168,7 @@ export class WalletConnectService {
       providerType: "walletconnect-universal",
     });
 
-    return this.persistIfValid(snapshot, provider.session);
-  }
-
-  private persistIfValid(
-    snapshot: SessionSnapshot | null,
-    session: NonNullable<WalletConnectProvider["session"]>,
-  ): SessionSnapshot | null {
-    if (!snapshot || !sessionService.isValidAgainstSession(snapshot, session)) {
+    if (!snapshot || !sessionService.isValidAgainstSession(snapshot, provider.session)) {
       sessionService.clear();
       return null;
     }
@@ -265,34 +176,6 @@ export class WalletConnectService {
     sessionService.persist(snapshot);
     this.emitSession(snapshot);
     return snapshot;
-  }
-
-  private async disconnectProviders(): Promise<void> {
-    const evm = providerService.getEvmProvider();
-    const universal = providerService.getUniversalProvider();
-
-    try {
-      if (evm) {
-        await evm.disconnect();
-      }
-    } catch {
-      // Wallet may already be disconnected.
-    }
-
-    try {
-      if (universal?.session) {
-        await universal.disconnect();
-      }
-    } catch {
-      // Wallet may already be disconnected.
-    }
-
-    this.evmInitPromise = null;
-    this.universalInitPromise = null;
-    this.evmListenersAttached = false;
-    this.universalListenersAttached = false;
-    providerService.setEvmProvider(null);
-    providerService.setUniversalProvider(null);
   }
 
   private emitSession(snapshot: SessionSnapshot | null): void {

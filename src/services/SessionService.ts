@@ -3,7 +3,7 @@ import type {
   ApprovedNamespaceSnapshot,
   ApprovedNamespaces,
 } from "../types/namespace";
-import type { SessionSnapshot, TokenStandard } from "../types/wallet";
+import type { SessionSnapshot } from "../types/wallet";
 import { isNamespaceKey, parseCaipAccount } from "../utils/caip";
 import { uniqueStrings } from "../utils/format";
 import { chainService } from "./ChainService";
@@ -39,23 +39,30 @@ export class SessionService {
     ]);
 
     const chainId = this.resolveChainId(source, namespaces, namespaceAccounts);
-    const tokenStandard = chainService.detectTokenStandard({
+    const tokenStandards = chainService.detectTokenStandards({
       namespaces,
       chainId,
     });
-    const activeNamespace = tokenStandard === "TRC20" ? namespaces.tron : namespaces.eip155;
+    const approvedMethods = uniqueStrings([
+      ...(namespaces.eip155?.methods ?? []),
+      ...(namespaces.tron?.methods ?? []),
+    ]);
+    const approvedEvents = uniqueStrings([
+      ...(namespaces.eip155?.events ?? []),
+      ...(namespaces.tron?.events ?? []),
+    ]);
 
     return {
       walletAddress,
       walletName: session.peer.metadata.name || "Unknown wallet",
       walletIcon: session.peer.metadata.icons[0] ?? null,
       chainId,
-      tokenStandard,
+      tokenStandards,
       connectedAccounts,
       namespaces,
       approvedChains,
-      approvedMethods: [...(activeNamespace?.methods ?? [])],
-      approvedEvents: [...(activeNamespace?.events ?? [])],
+      approvedMethods,
+      approvedEvents,
       sessionTopic: session.topic,
       pairingTopic: session.pairingTopic ?? "",
       connectionStatus: "connected",

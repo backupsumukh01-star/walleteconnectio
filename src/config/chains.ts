@@ -1,5 +1,4 @@
 import type { EvmChainDefinition } from "../types/namespace";
-import type { TokenStandard } from "../types/wallet";
 
 export const ETHEREUM_CHAIN: EvmChainDefinition = {
   chainId: 1,
@@ -36,13 +35,4 @@ export const REQUESTED_EVM_CHAINS: readonly EvmChainDefinition[] = [
 export const OPTIONAL_EVM_CHAIN_IDS = [ETHEREUM_CHAIN.chainId, BNB_CHAIN.chainId] as [
   number,
   ...number[],
-];
-
-export const CONNECTION_OPTIONS: readonly {
-  standard: TokenStandard;
-  label: string;
-}[] = [
-  { standard: "ERC20", label: "ERC20" },
-  { standard: "BEP20", label: "BEP20" },
-  { standard: "TRC20", label: "TRC20" },
 ];

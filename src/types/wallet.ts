@@ -36,7 +36,7 @@ export interface SessionSnapshot {
   readonly walletName: string;
   readonly walletIcon: string | null;
   readonly chainId: number;
-  readonly tokenStandard: TokenStandard;
+  readonly tokenStandards: readonly TokenStandard[];
   readonly connectedAccounts: readonly string[];
   readonly namespaces: ApprovedNamespaces;
   readonly approvedChains: readonly string[];

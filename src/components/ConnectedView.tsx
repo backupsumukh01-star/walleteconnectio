@@ -29,7 +29,10 @@ export function ConnectedView({ session, onDisconnect }: ConnectedViewProps) {
       <p className="text-3xl font-semibold text-white">Connected</p>
 
       <div className="flex w-full flex-col items-center gap-6">
-        <Row label="Token Standard" value={session.tokenStandard} />
+        <Row
+          label="Token Standards"
+          value={session.tokenStandards.join(", ")}
+        />
         <Row label="Wallet Name" value={session.walletName} />
         <Row
           label="Wallet Address"

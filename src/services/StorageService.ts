@@ -63,9 +63,7 @@ function isSessionSnapshot(value: unknown): value is SessionSnapshot {
     typeof record.walletName === "string" &&
     (typeof record.walletIcon === "string" || record.walletIcon === null) &&
     typeof record.chainId === "number" &&
-    (record.tokenStandard === "ERC20" ||
-      record.tokenStandard === "BEP20" ||
-      record.tokenStandard === "TRC20") &&
+    Array.isArray(record.tokenStandards) &&
     Array.isArray(record.connectedAccounts) &&
     typeof record.namespaces === "object" &&
     record.namespaces !== null &&

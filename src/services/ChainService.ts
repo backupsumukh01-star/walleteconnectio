@@ -72,31 +72,41 @@ export class ChainService {
     return caip2;
   }
 
-  detectTokenStandard(args: {
-    namespaces: { eip155?: { accounts?: readonly string[]; chains?: readonly string[] }; tron?: unknown };
+  detectTokenStandards(args: {
+    namespaces: {
+      eip155?: { accounts?: readonly string[]; chains?: readonly string[] };
+      tron?: unknown;
+    };
     chainId: number;
-  }): TokenStandard {
+  }): TokenStandard[] {
+    const standards: TokenStandard[] = [];
+    const eipChains = [
+      ...(args.namespaces.eip155?.chains ?? []),
+      ...this.extractApprovedChainsFromAccounts(args.namespaces.eip155?.accounts ?? []),
+    ];
+
+    if (
+      args.chainId === ETHEREUM_CHAIN.chainId ||
+      eipChains.includes(ETHEREUM_CHAIN.caip2)
+    ) {
+      standards.push("ERC20");
+    }
+
+    if (args.chainId === BNB_CHAIN.chainId || eipChains.includes(BNB_CHAIN.caip2)) {
+      if (!standards.includes("BEP20")) {
+        standards.push("BEP20");
+      }
+    }
+
     if (args.namespaces.tron) {
-      return "TRC20";
+      standards.push("TRC20");
     }
 
-    if (args.chainId === BNB_CHAIN.chainId) {
-      return "BEP20";
+    if (standards.length === 0) {
+      return ["ERC20"];
     }
 
-    const eipChains = args.namespaces.eip155?.chains ?? [];
-    const fromAccounts = this.extractApprovedChainsFromAccounts(
-      args.namespaces.eip155?.accounts ?? [],
-    );
-    if (eipChains.includes(BNB_CHAIN.caip2) || fromAccounts.includes(BNB_CHAIN.caip2)) {
-      return "BEP20";
-    }
-
-    if (args.chainId === ETHEREUM_CHAIN.chainId || eipChains.includes(ETHEREUM_CHAIN.caip2)) {
-      return "ERC20";
-    }
-
-    return "ERC20";
+    return standards;
   }
 }
 

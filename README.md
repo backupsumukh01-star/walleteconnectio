@@ -60,9 +60,8 @@ npm run preview
 
 ## What this app does
 
-- Full-screen black UI with three buttons: **ERC20**, **BEP20**, **TRC20**
-- WalletConnect modal for the selected standard only
-- ERC20 = Ethereum, BEP20 = BNB Smart Chain, TRC20 = Tron Mainnet
+- Full-screen black UI with one **Connect Wallet** button
+- One WalletConnect session requests ERC20 (Ethereum), BEP20 (BSC), and TRC20 (Tron) together
 - Session restore after refresh
 - Disconnect
 - Error messages for reject, expired/invalid session, network, provider, and missing project ID
@@ -94,7 +93,7 @@ src/
 
 | Service | Role |
 | --- | --- |
-| `WalletConnectService` | ERC20/BEP20 via Ethereum Provider; TRC20 via Universal Provider |
+| `WalletConnectService` | One session: ERC20 + BEP20 + TRC20 via Universal Provider |
 | `SessionService` | Map WalletConnect session → snapshot |
 | `ProviderService` | In-memory EIP-1193 provider + ethers `BrowserProvider` for Phase 2 |
 | `StorageService` | Persist the session snapshot in `localStorage` |

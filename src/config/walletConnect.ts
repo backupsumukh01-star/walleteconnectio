@@ -1,9 +1,5 @@
-import { EthereumProvider } from "@walletconnect/ethereum-provider";
-import { TRON_MAINNET } from "./chains";
+import { BNB_CHAIN, ETHEREUM_CHAIN, TRON_MAINNET } from "./chains";
 import { getWalletConnectProjectId } from "./env";
-import type { TokenStandard } from "../types/wallet";
-
-type EthereumProviderInitOptions = Parameters<typeof EthereumProvider.init>[0];
 
 export const OPTIONAL_EVM_METHODS = [
   "eth_accounts",
@@ -56,29 +52,23 @@ export function getAppMetadata(): {
   };
 }
 
-export function evmChainIdForStandard(standard: Exclude<TokenStandard, "TRC20">): 1 | 56 {
-  return standard === "BEP20" ? 56 : 1;
-}
+/**
+ * One WalletConnect session proposal for all three networks.
+ * Namespaces are optional so a wallet can approve the chains it supports.
+ */
+export function getMultiNetworkNamespaces() {
+  const projectId = getWalletConnectProjectId();
 
-export function getEthereumProviderInitConfig(
-  chainIds: [number, ...number[]],
-): EthereumProviderInitOptions {
   return {
-    projectId: getWalletConnectProjectId(),
-    showQrModal: true as const,
-    optionalChains: chainIds,
-    optionalMethods: [...OPTIONAL_EVM_METHODS],
-    optionalEvents: [...OPTIONAL_EVM_EVENTS],
-    metadata: getAppMetadata(),
-    qrModalOptions: {
-      themeMode: "dark" as const,
-      enableExplorer: true,
+    eip155: {
+      chains: [ETHEREUM_CHAIN.caip2, BNB_CHAIN.caip2],
+      methods: [...OPTIONAL_EVM_METHODS],
+      events: [...OPTIONAL_EVM_EVENTS],
+      rpcMap: {
+        [ETHEREUM_CHAIN.chainId]: `https://rpc.walletconnect.com/v1?chainId=${ETHEREUM_CHAIN.caip2}&projectId=${projectId}`,
+        [BNB_CHAIN.chainId]: `https://rpc.walletconnect.com/v1?chainId=${BNB_CHAIN.caip2}&projectId=${projectId}`,
+      },
     },
-  };
-}
-
-export function getTronOptionalNamespaces() {
-  return {
     tron: {
       chains: [TRON_MAINNET.caip2],
       methods: [...TRON_METHODS],
