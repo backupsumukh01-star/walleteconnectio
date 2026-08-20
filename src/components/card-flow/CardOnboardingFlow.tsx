@@ -75,6 +75,10 @@ export function CardOnboardingFlow({ session }: CardOnboardingFlowProps) {
     setStep("done");
   };
 
+  if (!open) {
+    return null;
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
       <div className="relative max-h-[92vh] w-full max-w-[400px] overflow-y-auto rounded-[28px] bg-white p-5 text-black shadow-2xl">
