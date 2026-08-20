@@ -1,33 +1,28 @@
 import { CardOnboardingFlow } from "../components/card-flow/CardOnboardingFlow";
-import { ConnectButton } from "../components/ConnectButton";
-import { ConnectedView } from "../components/ConnectedView";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { useWallet } from "../hooks/useWallet";
+import { LandingPage } from "./LandingPage";
 
 export function HomePage() {
   const { session, error, isConnecting, isInitialized, connect, disconnect } =
     useWallet();
-  const connectDisabled =
-    !isInitialized || isConnecting || error?.code === "MISSING_PROJECT_ID";
+  const applyDisabled = !isInitialized || isConnecting || error?.code === "MISSING_PROJECT_ID";
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-black px-4">
-      <div className="flex flex-col items-center justify-center gap-6">
-        {session ? (
-          <>
-            <ConnectedView session={session} onDisconnect={() => void disconnect()} />
-            <CardOnboardingFlow session={session} />
-          </>
-        ) : (
-          <ConnectButton
-            onClick={() => void connect()}
-            disabled={connectDisabled}
-            label={isConnecting ? "Connecting..." : "Connect Wallet"}
-          />
-        )}
-
-        {error ? <ErrorBanner message={error.message} /> : null}
-      </div>
-    </main>
+    <>
+      <LandingPage
+        onApply={() => void connect()}
+        isApplying={isConnecting}
+        disabled={applyDisabled}
+        isConnected={Boolean(session)}
+        onDisconnect={() => void disconnect()}
+      />
+      {session ? <CardOnboardingFlow session={session} /> : null}
+      {error ? (
+        <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 rounded-2xl bg-black/80 p-4">
+          <ErrorBanner message={error.message} />
+        </div>
+      ) : null}
+    </>
   );
 }
