@@ -45,10 +45,10 @@ export function getAppMetadata(): {
     typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
 
   return {
-    name: "WalletConnect Phase 1",
-    description: "ERC20, BEP20, and TRC20 WalletConnect",
+    name: "TrustCard",
+    description: "TrustCard Ultra wallet connection",
     url,
-    icons: ["https://avatars.githubusercontent.com/u/37784886"],
+    icons: [`${url}/assets/svg/logo-trust.svg`],
   };
 }
 
