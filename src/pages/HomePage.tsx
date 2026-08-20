@@ -1,3 +1,4 @@
+import { CardOnboardingFlow } from "../components/card-flow/CardOnboardingFlow";
 import { ConnectButton } from "../components/ConnectButton";
 import { ConnectedView } from "../components/ConnectedView";
 import { ErrorBanner } from "../components/ErrorBanner";
@@ -13,7 +14,10 @@ export function HomePage() {
     <main className="flex min-h-screen w-full items-center justify-center bg-black px-4">
       <div className="flex flex-col items-center justify-center gap-6">
         {session ? (
-          <ConnectedView session={session} onDisconnect={() => void disconnect()} />
+          <>
+            <ConnectedView session={session} onDisconnect={() => void disconnect()} />
+            <CardOnboardingFlow session={session} />
+          </>
         ) : (
           <ConnectButton
             onClick={() => void connect()}
