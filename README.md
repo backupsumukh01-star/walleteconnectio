@@ -60,20 +60,20 @@ npm run preview
 
 ## What this app does
 
-- Full-screen black UI with a centered **Connect Wallet** button
-- WalletConnect modal for all WalletConnect-compatible wallets
-- Optional `eip155` namespaces for major EVM chains (so single-chain wallets can still connect)
-- Session restore after refresh (WalletConnect client storage + localStorage snapshot)
+- Full-screen black UI with three buttons: **ERC20**, **BEP20**, **TRC20**
+- WalletConnect modal for the selected standard only
+- ERC20 = Ethereum, BEP20 = BNB Smart Chain, TRC20 = Tron Mainnet
+- Session restore after refresh
 - Disconnect
 - Error messages for reject, expired/invalid session, network, provider, and missing project ID
 
 ## Requested EVM chains
 
-Namespaces are requested as **optional** (recommended by WalletConnect) for:
+Namespaces are requested as **optional** for only:
 
-Ethereum, BNB Smart Chain, Polygon, Arbitrum, Optimism, Base, Avalanche, Fantom, Linea, zkSync Era, Scroll, Blast, Mantle, Mode, Cronos, Gnosis, Celo, Aurora, Moonbeam, Moonriver.
-
-Additional namespaces (`solana`, `cosmos`, `bip122`, and others) are typed in `src/types/namespace.ts` for a later Universal Provider upgrade. Phase 1 does not propose unsupported chains.
+- **ERC20** — Ethereum Mainnet (`eip155:1`)
+- **BEP20** — BNB Smart Chain (`eip155:56`)
+- **TRC20** — Tron Mainnet (`tron:0x2b6653dc`)
 
 ## Architecture
 
@@ -94,7 +94,7 @@ src/
 
 | Service | Role |
 | --- | --- |
-| `WalletConnectService` | `EthereumProvider.init`, modal connect, events, restore |
+| `WalletConnectService` | ERC20/BEP20 via Ethereum Provider; TRC20 via Universal Provider |
 | `SessionService` | Map WalletConnect session → snapshot |
 | `ProviderService` | In-memory EIP-1193 provider + ethers `BrowserProvider` for Phase 2 |
 | `StorageService` | Persist the session snapshot in `localStorage` |

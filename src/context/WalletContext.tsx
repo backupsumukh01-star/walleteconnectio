@@ -10,6 +10,7 @@ import { walletConnectService } from "../services/WalletConnectService";
 import type {
   ConnectionStatus,
   SessionSnapshot,
+  TokenStandard,
   WalletAppError,
 } from "../types/wallet";
 import { mapWalletError } from "../utils/errors";
@@ -20,7 +21,8 @@ interface WalletContextValue {
   readonly error: WalletAppError | null;
   readonly isInitialized: boolean;
   readonly isConnecting: boolean;
-  readonly connect: () => Promise<void>;
+  readonly connectingStandard: TokenStandard | null;
+  readonly connect: (standard: TokenStandard) => Promise<void>;
   readonly disconnect: () => Promise<void>;
   readonly clearError: () => void;
 }
@@ -47,6 +49,9 @@ export function WalletProvider({ children }: WalletProviderProps) {
   const [error, setError] = useState<WalletAppError | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectingStandard, setConnectingStandard] = useState<TokenStandard | null>(
+    null,
+  );
 
   useEffect(() => {
     const unsubscribeSession = walletConnectService.onSessionChange((next) => {
@@ -105,13 +110,14 @@ export function WalletProvider({ children }: WalletProviderProps) {
     };
   }, []);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (standard: TokenStandard) => {
     setIsConnecting(true);
+    setConnectingStandard(standard);
     setStatus("connecting");
     setError(null);
 
     try {
-      const next = await walletConnectService.connect();
+      const next = await walletConnectService.connect(standard);
       setSession(next);
       setStatus("connected");
     } catch (connectError) {
@@ -122,6 +128,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       setStatus("disconnected");
     } finally {
       setIsConnecting(false);
+      setConnectingStandard(null);
     }
   }, []);
 
@@ -143,6 +150,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       error,
       isInitialized,
       isConnecting,
+      connectingStandard,
       connect,
       disconnect,
       clearError,
@@ -153,6 +161,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       error,
       isInitialized,
       isConnecting,
+      connectingStandard,
       connect,
       disconnect,
       clearError,

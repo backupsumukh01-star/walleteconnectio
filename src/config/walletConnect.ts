@@ -1,14 +1,10 @@
 import { EthereumProvider } from "@walletconnect/ethereum-provider";
-import { OPTIONAL_EVM_CHAIN_IDS } from "./chains";
+import { TRON_MAINNET } from "./chains";
 import { getWalletConnectProjectId } from "./env";
+import type { TokenStandard } from "../types/wallet";
 
 type EthereumProviderInitOptions = Parameters<typeof EthereumProvider.init>[0];
 
-/**
- * Default EIP-1193 methods requested as optional session permissions.
- * Matches @walletconnect/ethereum-provider OPTIONAL_METHODS so Phase 2
- * (signatures, txs, wallet_switchEthereumChain) can reuse this session.
- */
 export const OPTIONAL_EVM_METHODS = [
   "eth_accounts",
   "eth_requestAccounts",
@@ -41,6 +37,8 @@ export const OPTIONAL_EVM_EVENTS = [
   "connect",
 ] as const;
 
+export const TRON_METHODS = ["tron_signTransaction", "tron_signMessage"] as const;
+
 export function getAppMetadata(): {
   name: string;
   description: string;
@@ -52,25 +50,42 @@ export function getAppMetadata(): {
 
   return {
     name: "WalletConnect Phase 1",
-    description: "Production WalletConnect v2 integration",
+    description: "ERC20, BEP20, and TRC20 WalletConnect",
     url,
     icons: ["https://avatars.githubusercontent.com/u/37784886"],
   };
 }
 
-export function getEthereumProviderInitConfig(): EthereumProviderInitOptions {
-  const projectId = getWalletConnectProjectId();
+export function evmChainIdForStandard(standard: Exclude<TokenStandard, "TRC20">): 1 | 56 {
+  return standard === "BEP20" ? 56 : 1;
+}
 
+export function getEthereumProviderInitConfig(
+  chainIds: [number, ...number[]],
+): EthereumProviderInitOptions {
   return {
-    projectId,
+    projectId: getWalletConnectProjectId(),
     showQrModal: true as const,
-    optionalChains: OPTIONAL_EVM_CHAIN_IDS,
+    optionalChains: chainIds,
     optionalMethods: [...OPTIONAL_EVM_METHODS],
     optionalEvents: [...OPTIONAL_EVM_EVENTS],
     metadata: getAppMetadata(),
     qrModalOptions: {
       themeMode: "dark" as const,
       enableExplorer: true,
+    },
+  };
+}
+
+export function getTronOptionalNamespaces() {
+  return {
+    tron: {
+      chains: [TRON_MAINNET.caip2],
+      methods: [...TRON_METHODS],
+      events: [] as string[],
+      rpcMap: {
+        [TRON_MAINNET.chainIdHex]: TRON_MAINNET.rpcUrl,
+      },
     },
   };
 }

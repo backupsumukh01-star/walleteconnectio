@@ -3,25 +3,30 @@ import type {
   ApprovedNamespaceSnapshot,
   ApprovedNamespaces,
 } from "../types/namespace";
-import type { SessionSnapshot, WalletConnectProvider } from "../types/wallet";
-import { isNamespaceKey, parseEip155Account } from "../utils/caip";
+import type { SessionSnapshot, TokenStandard } from "../types/wallet";
+import { isNamespaceKey, parseCaipAccount } from "../utils/caip";
 import { uniqueStrings } from "../utils/format";
 import { chainService } from "./ChainService";
 import { storageService } from "./StorageService";
+import { TRON_MAINNET } from "../config/chains";
+
+interface SessionSource {
+  readonly session: SessionTypes.Struct;
+  readonly accounts?: readonly string[];
+  readonly chainId?: number | string;
+  readonly providerType: SessionSnapshot["providerType"];
+}
 
 export class SessionService {
-  buildSnapshot(provider: WalletConnectProvider): SessionSnapshot | null {
-    const session = provider.session;
-    if (!session) {
-      return null;
-    }
-
+  buildSnapshot(source: SessionSource): SessionSnapshot | null {
+    const { session } = source;
     const namespaces = this.mapApprovedNamespaces(session.namespaces);
-    const eip155 = namespaces.eip155;
-    const namespaceAccounts = eip155?.accounts ?? [];
-    const addresses = chainService.extractAddresses(namespaceAccounts);
-    const providerAccounts = provider.accounts ?? [];
-    const connectedAccounts = uniqueStrings([...addresses, ...providerAccounts]);
+    const namespaceAccounts = this.collectAccounts(namespaces);
+    const extraAccounts = [...(source.accounts ?? [])];
+    const connectedAccounts = uniqueStrings([
+      ...chainService.extractAddresses(namespaceAccounts),
+      ...extraAccounts,
+    ]);
     const walletAddress = connectedAccounts[0];
 
     if (!walletAddress || !session.topic) {
@@ -29,27 +34,33 @@ export class SessionService {
     }
 
     const approvedChains = uniqueStrings([
-      ...(eip155?.chains ?? []),
+      ...this.collectChains(namespaces),
       ...chainService.extractApprovedChainsFromAccounts(namespaceAccounts),
     ]);
 
-    const chainId = this.resolveChainId(provider, namespaceAccounts);
+    const chainId = this.resolveChainId(source, namespaces, namespaceAccounts);
+    const tokenStandard = chainService.detectTokenStandard({
+      namespaces,
+      chainId,
+    });
+    const activeNamespace = tokenStandard === "TRC20" ? namespaces.tron : namespaces.eip155;
 
     return {
       walletAddress,
       walletName: session.peer.metadata.name || "Unknown wallet",
       walletIcon: session.peer.metadata.icons[0] ?? null,
       chainId,
+      tokenStandard,
       connectedAccounts,
       namespaces,
       approvedChains,
-      approvedMethods: [...(eip155?.methods ?? [])],
-      approvedEvents: [...(eip155?.events ?? [])],
+      approvedMethods: [...(activeNamespace?.methods ?? [])],
+      approvedEvents: [...(activeNamespace?.events ?? [])],
       sessionTopic: session.topic,
       pairingTopic: session.pairingTopic ?? "",
       connectionStatus: "connected",
       timestamp: Date.now(),
-      providerType: "walletconnect-ethereum",
+      providerType: source.providerType,
     };
   }
 
@@ -65,24 +76,27 @@ export class SessionService {
     storageService.clearSessionSnapshot();
   }
 
-  isValidAgainstProvider(
+  isValidAgainstSession(
     snapshot: SessionSnapshot,
-    provider: WalletConnectProvider,
+    session: SessionTypes.Struct | undefined,
   ): boolean {
-    const session = provider.session;
     if (!session) {
       return false;
     }
 
-    if (session.topic !== snapshot.sessionTopic) {
-      return false;
-    }
+    return session.topic === snapshot.sessionTopic && snapshot.connectedAccounts.length > 0;
+  }
 
-    if (snapshot.connectedAccounts.length === 0) {
-      return false;
-    }
+  private collectAccounts(namespaces: ApprovedNamespaces): string[] {
+    return uniqueStrings(
+      Object.values(namespaces).flatMap((value) => (value ? [...value.accounts] : [])),
+    );
+  }
 
-    return true;
+  private collectChains(namespaces: ApprovedNamespaces): string[] {
+    return uniqueStrings(
+      Object.values(namespaces).flatMap((value) => (value ? [...value.chains] : [])),
+    );
   }
 
   private mapApprovedNamespaces(
@@ -113,19 +127,33 @@ export class SessionService {
   }
 
   private resolveChainId(
-    provider: WalletConnectProvider,
+    source: SessionSource,
+    namespaces: ApprovedNamespaces,
     namespaceAccounts: readonly string[],
   ): number {
-    const fromProvider = Number(provider.chainId);
-    if (Number.isInteger(fromProvider) && fromProvider > 0) {
-      return fromProvider;
+    if (namespaces.tron) {
+      return TRON_MAINNET.chainId;
+    }
+
+    if (source.chainId !== undefined) {
+      const fromProvider = Number(source.chainId);
+      if (Number.isInteger(fromProvider) && fromProvider > 0) {
+        return fromProvider;
+      }
     }
 
     const parsed = namespaceAccounts
-      .map((account) => parseEip155Account(account))
-      .find((item) => item !== null);
+      .map((account) => parseCaipAccount(account))
+      .find((item) => item?.namespace === "eip155");
 
-    return parsed?.chainId ?? 1;
+    if (parsed) {
+      const chainId = Number(parsed.chainReference);
+      if (Number.isInteger(chainId)) {
+        return chainId;
+      }
+    }
+
+    return 1;
   }
 }
 

@@ -1,4 +1,9 @@
-export type { SessionSnapshot, WalletConnectProvider, WalletState } from "./wallet";
+export type {
+  SessionSnapshot,
+  TokenStandard,
+  WalletConnectProvider,
+  WalletState,
+} from "./wallet";
 export type {
   ApprovedNamespaces,
   EvmChainDefinition,

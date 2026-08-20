@@ -1,44 +1,44 @@
 import { BrowserProvider } from "ethers";
+import type UniversalProvider from "@walletconnect/universal-provider";
 import type { WalletConnectProvider } from "../types/wallet";
 
 /**
- * Holds the live WalletConnect EIP-1193 provider.
- *
- * The provider instance is not JSON-serializable. After a refresh it is
- * rehydrated by WalletConnectService via EthereumProvider.init(), which
- * reads the official WalletConnect client storage, then re-attached here.
- *
- * Phase 2 can add: getSigner(), getContract(), request() helpers, SIWE.
+ * Holds the live WalletConnect provider (EVM EthereumProvider or Tron UniversalProvider).
  */
 export class ProviderService {
-  private provider: WalletConnectProvider | null = null;
+  private evmProvider: WalletConnectProvider | null = null;
+  private universalProvider: UniversalProvider | null = null;
 
-  setProvider(provider: WalletConnectProvider | null): void {
-    this.provider = provider;
+  setEvmProvider(provider: WalletConnectProvider | null): void {
+    this.evmProvider = provider;
   }
 
-  getProvider(): WalletConnectProvider | null {
-    return this.provider;
+  setUniversalProvider(provider: UniversalProvider | null): void {
+    this.universalProvider = provider;
   }
 
-  requireProvider(): WalletConnectProvider {
-    if (!this.provider) {
-      throw new Error("WalletConnect provider is not initialized.");
+  getEvmProvider(): WalletConnectProvider | null {
+    return this.evmProvider;
+  }
+
+  getUniversalProvider(): UniversalProvider | null {
+    return this.universalProvider;
+  }
+
+  getEvmOrThrow(): WalletConnectProvider {
+    if (!this.evmProvider) {
+      throw new Error("WalletConnect EVM provider is not initialized.");
     }
 
-    return this.provider;
+    return this.evmProvider;
   }
 
   isConnected(): boolean {
-    return Boolean(this.provider?.session);
+    return Boolean(this.evmProvider?.session || this.universalProvider?.session);
   }
 
-  /**
-   * ethers v6 wrapper for Phase 2 contract / signature / tx work.
-   * Phase 1 does not send transactions or signatures.
-   */
   getEthersBrowserProvider(): BrowserProvider {
-    return new BrowserProvider(this.requireProvider());
+    return new BrowserProvider(this.getEvmOrThrow());
   }
 }
 

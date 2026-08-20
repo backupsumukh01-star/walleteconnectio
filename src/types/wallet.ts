@@ -1,6 +1,8 @@
 import type { EthereumProvider } from "@walletconnect/ethereum-provider";
 import type { ApprovedNamespaces } from "./namespace";
 
+export type TokenStandard = "ERC20" | "BEP20" | "TRC20";
+
 export type ConnectionStatus =
   | "disconnected"
   | "connecting"
@@ -34,6 +36,7 @@ export interface SessionSnapshot {
   readonly walletName: string;
   readonly walletIcon: string | null;
   readonly chainId: number;
+  readonly tokenStandard: TokenStandard;
   readonly connectedAccounts: readonly string[];
   readonly namespaces: ApprovedNamespaces;
   readonly approvedChains: readonly string[];
@@ -43,7 +46,7 @@ export interface SessionSnapshot {
   readonly pairingTopic: string;
   readonly connectionStatus: Extract<ConnectionStatus, "connected">;
   readonly timestamp: number;
-  readonly providerType: "walletconnect-ethereum";
+  readonly providerType: "walletconnect-ethereum" | "walletconnect-universal";
 }
 
 export type WalletConnectProvider = Awaited<

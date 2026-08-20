@@ -15,8 +15,10 @@
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173}"
   },
   "dependencies": {
+    "@reown/appkit": "1.8.19",
     "@walletconnect/ethereum-provider": "^2.23.10",
     "@walletconnect/types": "^2.23.10",
+    "@walletconnect/universal-provider": "^2.23.10",
     "ethers": "^6.17.0",
     "buffer": "^6.0.3",
     "react": "^19.1.1",

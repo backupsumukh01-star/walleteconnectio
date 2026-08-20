@@ -5,6 +5,7 @@
  */
 export type WalletConnectNamespaceKey =
   | "eip155"
+  | "tron"
   | "solana"
   | "cosmos"
   | "polkadot"
@@ -23,6 +24,7 @@ export interface EvmChainDefinition {
   readonly name: string;
   readonly namespace: "eip155";
   readonly caip2: `eip155:${number}`;
+  readonly tokenStandard: "ERC20" | "BEP20";
 }
 
 export interface NamespaceConfig {
